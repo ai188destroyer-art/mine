@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>World Snacks</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    header { background: #e74c3c; padding: 1rem; color: white; }
+    nav { display: flex; gap: 1rem; flex-wrap: wrap; }
+    nav a { color: white; text-decoration: none; cursor: pointer; }
+    nav a:hover { text-decoration: underline; }
+    main { padding: 1rem; }
+    section { display: none; }
+    section.active { display: block; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+    .product { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; background: #f9f9f9; }
+    .admin-controls { margin-top: 1rem; padding: 1rem; border: 1px solid #ccc; background: #f0f0f0; display: none; }
+    .login-box { margin-top: 1rem; padding: 1rem; border: 1px solid #ccc; background: #fafafa; }
+    input, textarea, button, select { margin: 0.25rem 0; padding: 0.5rem; }
+    textarea { width: 100%; height: 100px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>World Snacks</h1>
+    <nav id="navBar">
+      <a onclick="showPage('home')">Home</a>
+      <a onclick="showPage('products')">Products</a>
+      <a onclick="showPage('about')">About</a>
+      <a onclick="showPage('contact')">Contact</a>
+    </nav>
+  </header>
+  <main id="mainContent">
+    <section id="home" class="active">
+      <h2>Welcome to World Snacks!</h2>
+      <p>Discover candy and snacks from around the world. Use the navigation above to explore our products and learn more about us.</p>
+    </section>
+
+    <section id="products">
+      <h2>Our Products</h2>
+      <div id="productGrid" class="product-grid"></div>
+
+      <!-- Admin Login Box -->
+      <div id="loginBox" class="login-box">
+        <h3>Admin Login</h3>
+        <input type="password" id="adminPassword" placeholder="Enter password" />
+        <button onclick="loginAdmin()">Login</button>
+      </div>
+
+      <!-- Admin Controls -->
+      <div id="adminControls" class="admin-controls">
+        <h3>Admin Controls</h3>
+
+        <!-- Product Management -->
+        <h4>Add Product</h4>
+        <input type="text" id="newName" placeholder="Snack name" />
+        <input type="text" id="newDesc" placeholder="Description" />
+        <button onclick="addProduct()">Add Product</button>
+
+        <!-- Page Management -->
+        <h4>Create New Page</h4>
+        <input type="text" id="newPageTitle" placeholder="Page title (e.g. FAQ)" />
+        <textarea id="newPageContent" placeholder="Page content"></textarea>
+        <button onclick="addPage()">Add Page</button>
+
+        <h4>Edit / Delete Existing Page</h4>
+        <select id="editPageSelect"></select>
+        <input type="text" id="editPageTitle" placeholder="New page title" />
+        <textarea id="editPageContent" placeholder="New page content"></textarea>
+        <button onclick="loadPageForEdit()">Load Page</button>
+        <button onclick="savePageEdit()">Save Changes</button>
+        <button onclick="deletePage()" style="color:red">Delete Page</button>
+
+        <br>
+        <button onclick="logoutAdmin()">Logout</button>
+      </div>
+    </section>
+
+    <section id="about">
+      <h2>About Us</h2>
+      <p>World Snacks brings you treats and delights from all around the world. We carefully select the most loved candies and snacks so you can enjoy global flavors at home.</p>
+    </section>
+
+    <section id="contact">
+      <h2>Contact</h2>
+      <p>Email: hello@worldsnacks.com</p>
+      <p>Follow us on social media for the latest updates and new arrivals!</p>
+    </section>
+  </main>
+  <script>
+    // --- Product Data ---
+    let products = JSON.parse(localStorage.getItem('products')) || [
+      { name: "Pocky (Japan)", desc: "Chocolate-covered biscuit sticks." },
+      { name: "Chupa Chups (Spain)", desc: "Classic lollipops with many flavors." },
+      { name: "Toblerone (Switzerland)", desc: "Honey and almond nougat chocolate bar." }
+    ];
+
+    function renderProducts() {
+      const grid = document.getElementById('productGrid');
+      grid.innerHTML = '';
+      products.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.className = 'product';
+        div.innerHTML = `<h3>${p.name}</h3><p>${p.desc}</p>`;
+        if (isAdmin) {
+          const delBtn = document.createElement('button');
+          delBtn.textContent = 'Delete';
+          delBtn.onclick = () => deleteProduct(i);
+          div.appendChild(delBtn);
+        }
+        grid.appendChild(div);
+      });
+      localStorage.setItem('products', JSON.stringify(products));
+    }
+
+    function addProduct() {
+      const name = document.getElementById('newName').value.trim();
+      const desc = document.getElementById('newDesc').value.trim();
+      if (!name || !desc) return alert('Fill out both fields');
+      products.push({ name, desc });
+      document.getElementById('newName').value = '';
+      document.getElementById('newDesc').value = '';
+      renderProducts();
+    }
+
+    function deleteProduct(index) {
+      products.splice(index, 1);
+      renderProducts();
+    }
+
+    // --- Page Data ---
+    let customPages = JSON.parse(localStorage.getItem('pages')) || [];
+
+    function renderPages() {
+      customPages.forEach(p => {
+        if (!document.getElementById(p.id)) {
+          // Add nav link
+          const link = document.createElement('a');
+          link.textContent = p.title;
+          link.id = `nav-${p.id}`;
+          link.onclick = () => showPage(p.id);
+          document.getElementById('navBar').appendChild(link);
+
+          // Add section
+          const section = document.createElement('section');
+          section.id = p.id;
+          section.innerHTML = `<h2>${p.title}</h2><p>${p.content}</p>`;
+          document.getElementById('mainContent').appendChild(section);
+        }
+      });
+
+      // Update dropdown for editing
+      const select = document.getElementById('editPageSelect');
+      select.innerHTML = '';
+      customPages.forEach((p, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = p.title;
+        select.appendChild(opt);
+      });
+    }
+
+    function addPage() {
+      const title = document.getElementById('newPageTitle').value.trim();
+      const content = document.getElementById('newPageContent').value.trim();
+      if (!title || !content) return alert('Fill out both fields');
+      const id = title.toLowerCase().replace(/\s+/g, '-');
+      customPages.push({ id, title, content });
+      localStorage.setItem('pages', JSON.stringify(customPages));
+      document.getElementById('newPageTitle').value = '';
+      document.getElementById('newPageContent').value = '';
+      renderPages();
+    }
+
+    function loadPageForEdit() {
+      const index = document.getElementById('editPageSelect').value;
+      if (index === '') return;
+      const page = customPages[index];
+      document.getElementById('editPageTitle').value = page.title;
+      document.getElementById('editPageContent').value = page.content;
+    }
+
+    function savePageEdit() {
+      const index = document.getElementById('editPageSelect').value;
+      if (index === '') return;
+      const title = document.getElementById('editPageTitle').value.trim();
+      const content = document.getElementById('editPageContent').value.trim();
+      if (!title || !content) return alert('Fill out both fields');
+
+      const id = title.toLowerCase().replace(/\s+/g, '-');
+      customPages[index] = { id, title, content };
+      localStorage.setItem('pages', JSON.stringify(customPages));
+
+      refreshCustomPages();
+    }
+
+    function deletePage() {
+      const index = document.getElementById('editPageSelect').value;
+      if (index === '') return;
+      const page = customPages[index];
+      // Remove from array
+      customPages.splice(index, 1);
+      localStorage.setItem('pages', JSON.stringify(customPages));
+
+      // Remove nav link & section
+      const navLink = document.getElementById(`nav-${page.id}`);
+      if (navLink) navLink.remove();
+      const section = document.getElementById(page.id);
+      if (section) section.remove();
+
+      refreshCustomPages();
+    }
+
+    function refreshCustomPages() {
+      // Reset nav to base
+      document.getElementById('navBar').innerHTML = `
+        <a onclick="showPage('home')">Home</a>
+        <a onclick="showPage('products')">Products</a>
+        <a onclick="showPage('about')">About</a>
+        <a onclick="showPage('contact')">Contact</a>`;
+
+      // Remove all custom sections
+      document.querySelectorAll('main section').forEach(sec => {
+        if (!['home','products','about','contact'].includes(sec.id)) sec.remove();
+      });
+
+      renderPages();
+    }
+
+    // --- Admin Auth ---
+    let isAdmin = false;
+    const ADMIN_PASSWORD = "mysupersecret"; // change this!
+
+    function loginAdmin() {
+      const pw = document.getElementById('adminPassword').value;
+      if (pw === ADMIN_PASSWORD) {
+        isAdmin = true;
+        document.getElementById('loginBox').style.display = 'none';
+        document.getElementById('adminControls').style.display = 'block';
+        renderProducts();
+      } else {
+        alert('Wrong password');
+      }
+    }
+
+    function logoutAdmin() {
+      isAdmin = false;
+      document.getElementById('loginBox').style.display = 'block';
+      document.getElementById('adminControls').style.display = 'none';
+      renderProducts();
+    }
+
+    // --- Navigation ---
+    function showPage(id) {
+      document.querySelectorAll('main section').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    // Initial render
+    renderProducts();
+    renderPages();
+  </script>
+</body>
+</html>
