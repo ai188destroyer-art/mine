@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>World Snacks — Shop</title>
+<style>
+  :root{--accent:#ff6b6b;--muted:#6b7280;--bg:#f7f7fb;--card:#fff}
+  *{box-sizing:border-box}body{margin:0;font-family:Inter, system-ui, Arial;background:var(--bg);color:#111}
+  header{background:linear-gradient(90deg,var(--accent),#ffb86b);color:#fff;padding:16px 20px;display:flex;align-items:center;gap:20px;justify-content:space-between}
+  .brand{display:flex;gap:12px;align-items:center}
+  .brand h1{margin:0;font-size:20px}
+  nav a{color:rgba(255,255,255,0.95);text-decoration:none;margin:0 8px;font-weight:600}
+  .container{max-width:1100px;margin:18px auto;padding:0 16px}
+  .topbar{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+  .search{flex:1;display:flex;gap:8px}
+  .search input{flex:1;padding:10px;border-radius:8px;border:1px solid #e6e9ef}
+  .btn{background:var(--accent);color:#fff;padding:10px 12px;border-radius:8px;border:none;cursor:pointer}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+  .card{background:var(--card);border-radius:10px;padding:12px;box-shadow:0 8px 24px rgba(10,10,20,.06);display:flex;flex-direction:column}
+  .card img{width:100%;height:160px;object-fit:cover;border-radius:6px}
+  .meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px}
+  .price{font-weight:700;color:#0b0}
+  .rating{color:#f5a623;font-size:14px}
+  .actions{display:flex;gap:8px;margin-top:10px}
+  .small{font-size:13px;color:var(--muted)}
+  footer{margin:40px 0;text-align:center;color:var(--muted)}
+
+/* product detail */
+.detail{display:flex;gap:18px;align-items:flex-start}
+.detail img{width:420px;max-width:100%;height:360px;object-fit:cover;border-radius:10px}
+
+/* cart */
+.cart-list{max-width:760px}
+
+/* admin panel */
+.admin-panel{margin-top:12px;padding:12px;border-radius:8px;background:#fff;border:1px solid #eee;display:none}
+.admin-panel h3{margin-top:0}
+
+/* responsive */
+@media(max-width:760px){ .detail{flex-direction:column} .detail img{height:240px} header{flex-direction:column;align-items:flex-start} }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>World Snacks</h1>
+    <nav id="mainNav">
+      <a href="#home" onclick="show('home')">Home</a>
+      <a href="#products" onclick="show('products')">Products</a>
+      <a href="#cart" onclick="show('cart')">Cart(<span id="cartCount">0</span>)</a>
+    </nav>
+  </div>
+  <div style="display:flex;gap:12px;align-items:center">
+    <div id="userArea" class="small"></div>
+    <button class="btn" onclick="show('account')">Account</button>
+  </div>
+</header>
+
+<main class="container">
+  <section id="home" class="page active">
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:14px">
+      <div style="flex:1">
+        <h2>Discover sweets & snacks from around the world</h2>
+        <p class="small">Curated snacks, tasty pictures — click a product for more info.</p>
+      </div>
+    </div>
+
+    <div class="grid" id="featuredGrid"></div>
+  </section>
+
+  <section id="products" class="page" style="display:none">
+    <div class="topbar">
+      <div class="search">
+        <input id="search" placeholder="Search products, country or flavour…" oninput="renderProducts()" />
+        <select id="filterCountry" onchange="renderProducts()">
+          <option value="">All countries</option>
+        </select>
+      </div>
+      <button class="btn" onclick="show('products')">Refresh</button>
+    </div>
+    <div id="productGrid" class="grid"></div>
+    <div class="admin-panel" id="adminPanel">
+      <h3>Admin — manage store</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input id="pName" placeholder="Name">
+        <input id="pCountry" placeholder="Country">
+        <input id="pPrice" placeholder="Price" type="number" step="0.01">
+        <input id="pImg" placeholder="Image URL">
+        <input id="pDesc" placeholder="Short description">
+        <button onclick="adminAddProduct()">Add product</button>
+      </div>
+      <h4 style="margin-top:12px">Pages</h4>
+      <input id="pageTitle" placeholder="Title">
+      <textarea id="pageContent" placeholder="HTML content"></textarea>
+      <button onclick="adminAddPage()">Add page</button>
+      <div style="margin-top:8px">
+        <select id="adminPageSelect"></select>
+        <button onclick="adminLoadPage()">Load</button>
+        <button onclick="adminSavePage()">Save</button>
+        <button onclick="adminDeletePage()">Delete</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="product-detail" class="page" style="display:none">
+    <button onclick="show('products')" class="small">← Back to products</button>
+    <div id="detailWrap" style="margin-top:12px"></div>
+  </section>
+
+  <section id="cart" class="page" style="display:none">
+    <h2>Your Cart</h2>
+    <div id="cartList" class="cart-list"></div>
+    <div style="margin-top:12px">
+      <div class="small">Login to get member discounts.</div>
+      <button class="btn" onclick="show('checkout')">Proceed to Checkout</button>
+    </div>
+  </section>
+
+  <section id="checkout" class="page" style="display:none">
+    <h2>Checkout</h2>
+    <div id="checkoutSummary"></div>
+    <form id="checkoutForm" onsubmit="placeOrder(event)">
+      <input id="custName" placeholder="Full name" required><br>
+      <input id="custEmail" placeholder="Email" required type="email"><br>
+      <textarea id="custAddress" placeholder="Shipping address" required></textarea><br>
+      <div style="display:flex;gap:8px">
+        <button type="submit" class="btn">Place Order (email to admin)</button>
+        <button type="button" onclick="show('cart')">Back</button>
+      </div>
+    </form>
+  </section>
+
+  <section id="account" class="page" style="display:none">
+    <h2>Account</h2>
+    <div id="accountArea"></div>
+  </section>
+
+  <section id="about" class="page" style="display:none">
+    <h2>About</h2>
+    <p class="small">Demo store — admin editing is available via a secret admin token in URL.</p>
+  </section>
+</main>
+
+<footer><small style="color:#666">Made with ❤️ — edit only by admin.</small></footer>
+
+<script>
+/* ----------------------
+  Single-file shop SPA
+  - admin mode enabled by URL hash ?admin=TOKEN or via enterAdmin()
+  - visitor accounts stored in localStorage (not secure)
+  - only admin can add/edit products & pages
+  - clicking product opens detail page
+  - logged-in users (customers) get discount when logged in
+  Notes: For real security/use store, use backend (Firebase, Supabase, etc.)
+-----------------------*/
+
+const ADMIN_TOKEN = "DMumk1Ob101QRfRmxlyVcw";
+const ADMIN_EMAIL = \"ai188destroyer@gmail.com\"; // only this email gets admin controls // set a secret and keep it somewhere safe
+const EMAILJS_SERVICE = ''; // optional if you later add EmailJS
+const EMAILJS_TEMPLATE = '';
+const EMAILJS_KEY = '';
+
+let products = JSON.parse(localStorage.getItem('ws_products')) || [
+  {id:idGen(), name:'Pocky — Chocolate', country:'Japan', price:3.5, img:'https://upload.wikimedia.org/wikipedia/commons/5/57/Pocky_chocolate.jpg', desc:'Crunchy biscuit sticks coated in chocolate.', rating:4.6},
+  {id:idGen(), name:'Haribo Goldbears', country:'Germany', price:2.0, img:'https://upload.wikimedia.org/wikipedia/commons/1/12/Haribo_gummy_bears.jpg', desc:'Chewy fruity gummy bears.', rating:4.4},
+  {id:idGen(), name:'Tim Tam', country:'Australia', price:4.5, img:'https://upload.wikimedia.org/wikipedia/commons/d/d3/Tim_Tam_biscuits.jpg', desc:'Chocolate biscuits — dunk in tea!', rating:4.7},
+  {id:idGen(), name:'Dulce de Leche Bonbons', country:'Argentina', price:3.8, img:'https://images.unsplash.com/photo-1599785209799-7d2a5f0a7d1e?w=800', desc:'Creamy dulce de leche candies.', rating:4.2}
+];
+let pages = JSON.parse(localStorage.getItem('ws_pages')) || [];
+let cart = JSON.parse(localStorage.getItem('ws_cart')) || [];
+let users = JSON.parse(localStorage.getItem('ws_users')) || []; // {email,password,name}
+let session = JSON.parse(localStorage.getItem('ws_session')) || null; // {email,name}
+
+function idGen(){ return 'p_'+Math.random().toString(36).slice(2,9); }
+function saveAll(){ localStorage.setItem('ws_products', JSON.stringify(products)); localStorage.setItem('ws_pages', JSON.stringify(pages)); localStorage.setItem('ws_cart', JSON.stringify(cart)); localStorage.setItem('ws_users', JSON.stringify(users)); localStorage.setItem('ws_session', JSON.stringify(session)); }
+
+/* ---------- UI helpers ---------- */
+function show(id){
+  document.querySelectorAll('.page').forEach(s=>s.style.display='none');
+  document.getElementById(id).style.display='block';
+  if(id==='products') renderProducts();
+  if(id==='home') renderFeatured();
+  if(id==='cart') renderCart();
+  if(id==='account') renderAccount();
+  if(id==='product-detail'){};
+}
+
+/* ---------- Render products & featured ---------- */
+function renderProducts(){
+  const grid = document.getElementById('productGrid');
+  grid.innerHTML='';
+  const q=document.getElementById('search').value.toLowerCase();
+  const countryFilter=document.getElementById('filterCountry').value;
+  const list = products.filter(p=> (!q || p.name.toLowerCase().includes(q) || p.desc.toLowerCase().includes(q) || p.country.toLowerCase().includes(q)) && (!countryFilter || p.country===countryFilter));
+  list.forEach((p,i)=>{
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML = `
+      <img src="${escape(p.img)}" alt="${escape(p.name)}">
+      <div style="flex:1">
+        <div class="meta"><strong>${escape(p.name)}</strong><span class="rating">${p.rating}★</span></div>
+        <div class="small">${escape(p.country)}</div>
+        <div style="margin-top:8px"><span class="price">$${(getPriceForUser(p)).toFixed(2)}</span></div>
+        <div class="actions"><button class="btn" onclick="viewProduct('${p.id}')">View</button><button class="btn" onclick="addToCart('${p.id}')">Add to cart</button></div>
+      </div>`;
+    grid.appendChild(card);
+  });
+  populateCountryFilter();
+  updateCartCount();
+  // admin panel show/hide
+  document.getElementById('adminPanel').style.display = isAdminMode()? 'block' : 'none';
+  renderAdminPageSelect();
+}
+
+function renderFeatured(){
+  const f = document.getElementById('featuredGrid'); f.innerHTML='';
+  products.slice(0,4).forEach(p=>{
+    const card=document.createElement('div'); card.className='card';
+    card.innerHTML = `<img src="${escape(p.img)}"><div class="meta"><strong>${escape(p.name)}</strong><span class="price">$${getPriceForUser(p).toFixed(2)}</span></div><div class="small">${escape(p.desc)}</div><div style="margin-top:8px"><button class="btn" onclick="viewProduct('${p.id}')">View</button></div>`;
+    f.appendChild(card);
+  });
+}
+
+/* ---------- product detail ---------- */
+function viewProduct(id){
+  const p = products.find(x=>x.id===id); if(!p) return alert('not found');
+  const wrap = document.getElementById('detailWrap'); wrap.innerHTML = `
+    <div class="detail">
+      <img src="${escape(p.img)}" alt="${escape(p.name)}">
+      <div style="flex:1">
+        <h2>${escape(p.name)}</h2>
+        <div class="rating">${p.rating}★</div>
+        <p class="small">${escape(p.country)}</p>
+        <p>${escape(p.desc)}</p>
+        <p><strong>Price: $${getPriceForUser(p).toFixed(2)}</strong></p>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn" onclick="addToCart('${p.id}')">Add to cart</button>
+          <button onclick="show('products')" class="small">Back</button>
+        </div>
+        ${isAdminMode() ? `<div style="margin-top:12px"><h4>Edit product</h4>
+          <input id="editName" value="${escapeAttr(p.name)}"><input id="editCountry" value="${escapeAttr(p.country)}"><input id="editPrice" value="${p.price}" type="number"><input id="editImg" value="${escapeAttr(p.img)}"><textarea id="editDesc">${escapeAttr(p.desc)}</textarea>
+          <div style="margin-top:6px"><button onclick="saveProductEdit('${p.id}')">Save</button><button onclick="deleteProduct('${p.id}')">Delete</button></div>
+        </div>` : ''}
+      </div>
+    </div>`;
+  show('product-detail');
+}
+
+/* ---------- cart ---------- */
+function addToCart(id){
+  const p = products.find(x=>x.id===id); if(!p) return;
+  const existing = cart.find(i=>i.id===id);
+  if(existing) existing.qty++;
+  else cart.push({id:p.id,name:p.name,price:p.price,qty:1});
+  saveAll(); renderCart(); updateCartCount();
+  alert('Added to cart');
+}
+function renderCart(){
+  const el = document.getElementById('cartList'); el.innerHTML='';
+  if(cart.length===0){ el.innerHTML='<p>Your cart is empty.</p>'; return; }
+  let html='<table><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr>';
+  let total=0;
+  cart.forEach((it,i)=>{ const sub = it.price*it.qty; total+=sub; html+=`<tr><td>${escape(it.name)}</td><td><input type="number" value="${it.qty}" min="1" onchange="updateCartQty(${i},this.value)"></td><td>$${it.price.toFixed(2)}</td><td>$${sub.toFixed(2)}</td><td><button onclick="removeCartItem(${i})">Remove</button></td></tr>` });
+  html+=`<tr><td colspan="3"><strong>Grand Total</strong></td><td colspan="2"><strong>$${applyDiscount(total).toFixed(2)}</strong></td></tr></table>`;
+  el.innerHTML=html;
+}
+function updateCartQty(i,q){ cart[i].qty = parseInt(q); saveAll(); renderCart(); updateCartCount(); }
+function removeCartItem(i){ cart.splice(i,1); saveAll(); renderCart(); updateCartCount(); }
+function updateCartCount(){ document.getElementById('cartCount').textContent = cart.reduce((a,b)=>a+(b.qty||0),0); }
+function applyDiscount(total){
+  if(session && session.email) return total * 0.90; // 10% member discount
+  return total;
+}
+function getPriceForUser(p){ return session? p.price*0.90 : p.price; }
+
+/* ---------- checkout/email (no external EmailJS code included) ---------- */
+function checkout(){
+  if(cart.length===0) return alert('Cart empty');
+  // build summary
+  let html='<ul>'; let total=0;
+  cart.forEach(it=>{ html+=`<li>${it.qty} × ${escape(it.name)} — $${(it.price*it.qty).toFixed(2)}</li>`; total+=it.price*it.qty; });
+  html+='</ul>'; html+=`<p><strong>Subtotal: $${total.toFixed(2)}</strong></p>`;
+  html+=`<p><strong>After discount (if member): $${applyDiscount(total).toFixed(2)}</strong></p>`;
+  document.getElementById('checkoutSummary').innerHTML = html;
+  show('checkout');
+}
+function placeOrder(ev){
+  ev.preventDefault();
+  const name = document.getElementById('custName').value;
+  const email = document.getElementById('custEmail').value;
+  const address = document.getElementById('custAddress').value;
+  // Prepare order text
+  let orderText = cart.map(it=>`${it.qty} x ${it.name} = $${(it.qty*it.price).toFixed(2)}`).join('\\n');
+  orderText += '\\nSubtotal: $' + cart.reduce((s,it)=>s+it.qty*it.price,0).toFixed(2);
+  orderText += '\\nDiscounted total: $' + applyDiscount(cart.reduce((s,it)=>s+it.qty*it.price,0)).toFixed(2);
+  orderText += '\\nShipping:\\n' + address;
+  // Here we would send orderText via EmailJS or backend. For demo we store orders to localStorage for admin to view
+  let orders = JSON.parse(localStorage.getItem('ws_orders')||'[]');
+  orders.push({id:idGen(),name,email,address,order:orderText,when:new Date().toISOString()});
+  localStorage.setItem('ws_orders', JSON.stringify(orders));
+  cart = []; saveAll(); renderCart(); updateCartCount();
+  alert('Order placed! Admin will see it in Orders (localStorage demo).');
+  show('home');
+}
+
+/* ---------- user accounts ---------- */
+function renderAccount(){
+  const area = document.getElementById('accountArea'); area.innerHTML='';
+  if(session){
+    area.innerHTML = `<p>Logged in as <strong>${escape(session.name)}</strong> (${escape(session.email)})</p>
+      <button onclick="logoutUser()">Logout</button>`;
+  } else {
+    area.innerHTML = `
+      <h3>Sign in</h3>
+      <input id="loginEmail" placeholder="Email"><input id="loginPass" type="password" placeholder="Password"><button onclick="loginUser()">Sign in</button>
+      <h3>Or register</h3>
+      <input id="regName" placeholder="Full name"><input id="regEmail" placeholder="Email"><input id="regPass" type="password" placeholder="Password"><button onclick="registerUser()">Register</button>
+    `;
+  }
+}
+function registerUser(){
+  const name=document.getElementById('regName').value.trim(); const email=document.getElementById('regEmail').value.trim(); const pass=document.getElementById('regPass').value;
+  if(!name||!email||!pass) return alert('Fill all fields');
+  if(users.find(u=>u.email===email)) return alert('Email exists');
+  users.push({name,email,password:pass}); saveAll(); session={email,name}; saveAll(); renderAccount(); alert('Registered and signed in — you will receive member discount.');
+}
+function loginUser(){
+  const email=document.getElementById('loginEmail').value.trim(); const pass=document.getElementById('loginPass').value;
+  const u = users.find(x=>x.email===email && x.password===pass);
+  if(!u) return alert('Invalid credentials');
+  session={email:u.email,name:u.name}; saveAll(); renderAccount(); alert('Signed in — member discount applied.');
+}
+function logoutUser(){ session=null; saveAll(); renderAccount(); updateCartCount(); alert('Signed out'); }
+
+/* ---------- admin mode (no visible password prompt) ----------
+   Activate admin mode by visiting the URL with #admin=TOKEN (e.g. index.html#admin=YOURTOKEN)
+   OR call enterAdmin() from console to set mode temporarily.
+   This is NOT secure for production; use a server for real auth.
+*/
+function isAdminMode() {
+  // Admin only if signed in as the admin email
+  if (session && session.email === ADMIN_EMAIL) {
+    return true;
+  }
+  return false;
+}
+  }
+  return false;
+}
+function enterAdmin(){ const t = prompt('Enter admin token (hidden):'); if(t===ADMIN_TOKEN){ localStorage.setItem('ws_isAdmin','1'); alert('Admin mode on'); renderProducts(); } else alert('Wrong token'); }
+function exitAdmin(){ localStorage.removeItem('ws_isAdmin'); alert('Admin off'); renderProducts(); }
+
+/* ---------- admin product functions ---------- */
+function adminAddProduct(){
+  const name=document.getElementById('pName').value.trim(); const country=document.getElementById('pCountry').value.trim();
+  const price=parseFloat(document.getElementById('pPrice').value); const img=document.getElementById('pImg').value.trim(); const desc=document.getElementById('pDesc').value.trim();
+  if(!name||isNaN(price)) return alert('Name & price required');
+  products.push({id:idGen(),name,country,price,img:img||'https://via.placeholder.com/400x300?text=Snack',desc,rating:4.3});
+  saveAll(); renderProducts(); alert('Product added');
+}
+function saveProductEdit(id){
+  const p = products.find(x=>x.id===id); if(!p) return;
+  p.name = document.getElementById('editName').value.trim();
+  p.country = document.getElementById('editCountry').value.trim();
+  p.price = parseFloat(document.getElementById('editPrice').value);
+  p.img = document.getElementById('editImg').value.trim();
+  p.desc = document.getElementById('editDesc').value.trim();
+  saveAll(); alert('Saved'); viewProduct(id);
+}
+function deleteProduct(id){
+  if(!confirm('Delete product?')) return;
+  products = products.filter(x=>x.id!==id); saveAll(); renderProducts(); show('products');
+}
+
+/* ---------- pages management ---------- */
+function adminAddPage(){ const t=document.getElementById('pageTitle').value.trim(), c=document.getElementById('pageContent').value.trim(); if(!t||!c) return alert('Fill'); const id=t.toLowerCase().replace(/\\s+/g,'-'); pages.push({id,title:t,content:c}); saveAll(); renderCustomPages(); alert('Page added'); }
+function renderCustomPages(){ pages.forEach(p=>{ if(!document.getElementById(p.id)){ const a=document.createElement('a'); a.textContent=p.title; a.onclick=()=>show(p.id); document.getElementById('mainNav').appendChild(a); const s=document.createElement('section'); s.id=p.id; s.className='page'; s.style.display='none'; s.innerHTML=`<h2>${p.title}</h2><div>${p.content}</div>`; document.querySelector('main.container').appendChild(s); } }); renderAdminPageSelect(); }
+function renderAdminPageSelect(){ const sel=document.getElementById('adminPageSelect'); if(!sel) return; sel.innerHTML=''; pages.forEach((p,i)=>{ const o=document.createElement('option'); o.value=i; o.text=p.title; sel.appendChild(o); }); }
+function adminLoadPage(){ const i=document.getElementById('adminPageSelect').value; if(i==='') return alert('select'); document.getElementById('pageTitle').value=pages[i].title; document.getElementById('pageContent').value=pages[i].content; document.getElementById('editPageIndex')?.remove(); const inp=document.createElement('input'); inp.type='hidden'; inp.id='editPageIndex'; inp.value=i; document.getElementById('adminPanel').appendChild(inp); }
+function adminSavePage(){ const idx=document.getElementById('editPageIndex')?.value; if(idx===undefined) return alert('Load first'); pages[idx].title=document.getElementById('pageTitle').value; pages[idx].content=document.getElementById('pageContent').value; saveAll(); alert('Saved'); location.reload(); }
+function adminDeletePage(){ const idx=document.getElementById('adminPageSelect').value; if(idx==='') return; if(!confirm('Delete page?')) return; const id=pages[idx].id; pages.splice(idx,1); saveAll(); document.getElementById(id)?.remove(); location.reload(); }
+
+/* ---------- orders (admin view) ---------- */
+function adminViewOrders(){
+  const orders = JSON.parse(localStorage.getItem('ws_orders')||'[]');
+  let html = '<h3>Orders (local)</h3><ul>';
+  orders.forEach(o=> html+=`<li><strong>${escape(o.name)}</strong> (${o.when})<pre>${escape(o.order)}</pre></li>`);
+  html+='</ul>'; return html;
+}
+
+/* ---------- utilities ---------- */
+function populateCountryFilter(){
+  const sel=document.getElementById('filterCountry'); const countries=Array.from(new Set(products.map(p=>p.country).filter(Boolean))).sort();
+  sel.innerHTML='<option value=\"\">All countries</option>'; countries.forEach(c=>{ const o=document.createElement('option'); o.value=c; o.text=c; sel.appendChild(o); });
+}
+function renderAdminPageSelect(){ const sel=document.getElementById('adminPageSelect'); if(!sel) return; sel.innerHTML=''; pages.forEach((p,i)=>{ const o=document.createElement('option'); o.value=i; o.text=p.title; sel.appendChild(o); }); }
+function escape(s){ return String(s||'').replace(/[&<>]/g, c=> ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+function escapeAttr(s){ return String(s||'').replace(/"/g,'&quot;'); }
+
+/* ---------- init ---------- */
+(function init(){
+  // read admin token on load (activate admin if included in URL hash)
+  isAdminMode(); // will check URL hash and set localStorage flag
+  renderFeatured(); renderProducts(); renderCustomPages(); renderCart(); renderAccount();
+  // if admin, show orders link
+  if(isAdminMode()){
+    const a=document.createElement('a'); a.textContent='Admin: Orders'; a.onclick=()=>{ alert(adminViewOrders()); }; document.getElementById('mainNav').appendChild(a);
+  }
+})();
+
+</script>
+</body>
+</html>
