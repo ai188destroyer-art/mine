@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>World Snacks</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
+    header { background: #e74c3c; padding: 1rem; color: white; }
+    nav { display: flex; gap: 1rem; flex-wrap: wrap; }
+    nav a { color: white; text-decoration: none; cursor: pointer; }
+    nav a:hover { text-decoration: underline; }
+    main { padding: 1rem; }
+    section { display: none; }
+    section.active { display: block; }
+    .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 1rem; }
+    .product { border: 1px solid #ddd; padding: 1rem; border-radius: 8px; background: #f9f9f9; }
+    .admin-controls { margin-top: 1rem; padding: 1rem; border: 1px solid #ccc; background: #f0f0f0; display: none; }
+    .login-box { margin-top: 1rem; padding: 1rem; border: 1px solid #ccc; background: #fafafa; }
+    input, textarea, button { margin: 0.25rem 0; padding: 0.5rem; }
+    textarea { width: 100%; height: 100px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #eee; }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script>
+    (function(){
+      emailjs.init("YOUR_PUBLIC_KEY"); // Replace with your EmailJS public key
+    })();
+  </script>
+</head>
+<body>
+  <header>
+    <h1>World Snacks</h1>
+    <nav id="navBar">
+      <a onclick="showPage('home')">Home</a>
+      <a onclick="showPage('products')">Products</a>
+      <a onclick="showPage('cart')">Cart</a>
+      <a onclick="showPage('about')">About</a>
+      <a onclick="showPage('contact')">Contact</a>
+    </nav>
+  </header>
+  <main id="mainContent">
+    <section id="home" class="active">
+      <h2>Welcome to World Snacks!</h2>
+      <p>Discover candy and snacks from around the world. Use the navigation above to explore our products and learn more about us.</p>
+    </section>
+    <section id="products">
+      <h2>Our Products</h2>
+      <div id="productGrid" class="product-grid"></div>
+      <div id="loginBox" class="login-box">
+        <h3>Admin Login</h3>
+        <input type="password" id="adminPassword" placeholder="Enter password" />
+        <button onclick="loginAdmin()">Login</button>
+      </div>
+      <div id="adminControls" class="admin-controls">
+        <h3>Admin Controls</h3>
+        <h4>Add Product</h4>
+        <input type="text" id="newName" placeholder="Snack name" />
+        <input type="text" id="newDesc" placeholder="Description" />
+        <input type="number" id="newPrice" placeholder="Price" />
+        <button onclick="addProduct()">Add Product</button>
+        <h4>Create New Page</h4>
+        <input type="text" id="newPageTitle" placeholder="Page title (e.g. FAQ)" />
+        <textarea id="newPageContent" placeholder="Page content"></textarea>
+        <button onclick="addPage()">Add Page</button>
+        <h4>Edit/Delete Page</h4>
+        <select id="editPageSelect"></select><br>
+        <input type="text" id="editPageTitle" placeholder="Edit title" />
+        <textarea id="editPageContent" placeholder="Edit content"></textarea><br>
+        <button onclick="editPage()">Save Changes</button>
+        <button onclick="deletePage()">Delete Page</button>
+        <br><br>
+        <button onclick="logoutAdmin()">Logout</button>
+      </div>
+    </section>
+    <section id="cart">
+      <h2>Your Shopping Cart</h2>
+      <div id="cartContent"></div>
+      <button onclick="checkout()" id="checkoutBtn" style="display:none;">Checkout</button>
+    </section>
+    <section id="checkout">
+      <h2>Checkout</h2>
+      <div id="checkoutSummary"></div>
+      <form id="checkoutForm" onsubmit="sendOrder(event)">
+        <h3>Your Details</h3>
+        <input type="text" id="custName" placeholder="Your Name" required><br>
+        <input type="email" id="custEmail" placeholder="Your Email" required><br>
+        <textarea id="custAddress" placeholder="Your Address" required></textarea><br>
+        <button type="submit">Place Order</button>
+      </form>
+    </section>
+    <section id="about">
+      <h2>About Us</h2>
+      <p>World Snacks brings you treats and delights from all around the world. We carefully select the most loved candies and snacks so you can enjoy global flavors at home.</p>
+    </section>
+    <section id="contact">
+      <h2>Contact</h2>
+      <p>Email: hello@worldsnacks.com</p>
+      <p>Follow us on social media for the latest updates and new arrivals!</p>
+    </section>
+  </main>
+  <script>
+    let products = JSON.parse(localStorage.getItem('products')) || [
+      { name: "Pocky (Japan)", desc: "Chocolate-covered biscuit sticks.", price: 5 },
+      { name: "Chupa Chups (Spain)", desc: "Classic lollipops with many flavors.", price: 2 },
+      { name: "Toblerone (Switzerland)", desc: "Honey and almond nougat chocolate bar.", price: 6 }
+    ];
+    let cart = JSON.parse(localStorage.getItem('cart')) || [];
+    function renderProducts() {
+      const grid = document.getElementById('productGrid');
+      grid.innerHTML = '';
+      products.forEach((p, i) => {
+        const div = document.createElement('div');
+        div.className = 'product';
+        div.innerHTML = `<h3>${p.name}</h3><p>${p.desc}</p><p><strong>$${p.price}</strong></p>`;
+        const btn = document.createElement('button');
+        btn.textContent = 'Add to Cart';
+        btn.onclick = () => addToCart(i);
+        div.appendChild(btn);
+        if (isAdmin) {
+          const delBtn = document.createElement('button');
+          delBtn.textContent = 'Delete';
+          delBtn.onclick = () => deleteProduct(i);
+          div.appendChild(delBtn);
+        }
+        grid.appendChild(div);
+      });
+      localStorage.setItem('products', JSON.stringify(products));
+    }
+    function addProduct() {
+      const name = document.getElementById('newName').value.trim();
+      const desc = document.getElementById('newDesc').value.trim();
+      const price = parseFloat(document.getElementById('newPrice').value);
+      if (!name || !desc || isNaN(price)) return alert('Fill out all fields');
+      products.push({ name, desc, price });
+      document.getElementById('newName').value = '';
+      document.getElementById('newDesc').value = '';
+      document.getElementById('newPrice').value = '';
+      renderProducts();
+    }
+    function deleteProduct(index) { products.splice(index, 1); renderProducts(); }
+    function addToCart(index) {
+      const item = products[index];
+      const existing = cart.find(c => c.name === item.name);
+      if (existing) existing.qty++;
+      else cart.push({ name: item.name, price: item.price, qty: 1 });
+      saveCart(); renderCart();
+    }
+    function renderCart() {
+      const cartDiv = document.getElementById('cartContent');
+      if (cart.length === 0) { cartDiv.innerHTML = "<p>Your cart is empty.</p>"; document.getElementById('checkoutBtn').style.display = "none"; return; }
+      let html = "<table><tr><th>Item</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr>";
+      let total = 0;
+      cart.forEach((c, i) => {
+        const itemTotal = c.qty * c.price; total += itemTotal;
+        html += `<tr><td>${c.name}</td><td><input type='number' min='1' value='${c.qty}' onchange='updateQty(${i}, this.value)'></td><td>$${c.price}</td><td>$${itemTotal}</td><td><button onclick='removeFromCart(${i})'>Remove</button></td></tr>`;
+      });
+      html += `<tr><td colspan='3'><strong>Grand Total</strong></td><td colspan='2'><strong>$${total}</strong></td></tr></table>`;
+      cartDiv.innerHTML = html;
+      document.getElementById('checkoutBtn').style.display = "inline-block";
+    }
+    function updateQty(index, qty) { cart[index].qty = parseInt(qty); saveCart(); renderCart(); }
+    function removeFromCart(index) { cart.splice(index, 1); saveCart(); renderCart(); }
+    function checkout() {
+      let summary = "<h3>Order Summary</h3><ul>";
+      let total = 0;
+      cart.forEach(c => { summary += `<li>${c.qty} × ${c.name} - $${c.qty * c.price}</li>`; total += c.qty * c.price; });
+      summary += `</ul><p><strong>Total: $${total}</strong></p>`;
+      document.getElementById('checkoutSummary').innerHTML = summary;
+      showPage('checkout');
+    }
+    function sendOrder(event) {
+      event.preventDefault();
+      const name = document.getElementById('custName').value;
+      const email = document.getElementById('custEmail').value;
+      const address = document.getElementById('custAddress').value;
+      let orderDetails = cart.map(c => `${c.qty} × ${c.name} - $${c.qty * c.price}`).join("\n");
+      let total = cart.reduce((sum, c) => sum + c.qty * c.price, 0);
+      orderDetails += `\nTotal: $${total}`;
+      emailjs.send("YOUR_SERVICE_ID", "YOUR_TEMPLATE_ID", { customer_name: name, customer_email: email, customer_address: address, order: orderDetails }).then(() => {
+        alert("Order sent! Thank you."); cart = []; saveCart(); renderCart(); showPage('home');
+      }, (err) => { alert("Failed to send order: " + JSON.stringify(err)); });
+    }
+    function saveCart() { localStorage.setItem('cart', JSON.stringify(cart)); }
+    let customPages = JSON.parse(localStorage.getItem('pages')) || [];
+    function renderPages() {
+      customPages.forEach(p => {
+        if (!document.getElementById(p.id)) {
+          const link = document.createElement('a'); link.textContent = p.title; link.onclick = () => showPage(p.id);
+          document.getElementById('navBar').appendChild(link);
+          const section = document.createElement('section'); section.id = p.id; section.innerHTML = `<h2>${p.title}</h2><p>${p.content}</p>`;
+          document.getElementById('mainContent').appendChild(section);
+        }
+      }); updatePageSelect();
+    }
+    function addPage() {
+      const title = document.getElementById('newPageTitle').value.trim();
+      const content = document.getElementById('newPageContent').value.trim();
+      if (!title || !content) return alert('Fill out both fields');
+      const id = title.toLowerCase().replace(/\s+/g, '-');
+      customPages.push({ id, title, content });
+      localStorage.setItem('pages', JSON.stringify(customPages));
+      document.getElementById('newPageTitle').value = ''; document.getElementById('newPageContent').value = ''; renderPages();
+    }
+    function updatePageSelect() {
+      const select = document.getElementById('editPageSelect'); select.innerHTML = '<option value="">--Select Page--</option>';
+      customPages.forEach((p, i) => { const opt = document.createElement('option'); opt.value = i; opt.textContent = p.title; select.appendChild(opt); });
+    }
+    function editPage() {
+      const idx = document.getElementById('editPageSelect').value;
+      if (idx === '') return alert('Select a page first');
+      customPages[idx].title = document.getElementById('editPageTitle').value.trim();
+      customPages[idx].content = document.getElementById('editPageContent').value.trim();
+      localStorage.setItem('pages', JSON.stringify(customPages)); location.reload();
+    }
+    function deletePage() {
+      const idx = document.getElementById('editPageSelect').value;
+      if (idx === '') return alert('Select a page first');
+      const id = customPages[idx].id; document.getElementById(id)?.remove();
+      const navLinks = document.querySelectorAll('#navBar a'); navLinks.forEach(link => { if (link.textContent === customPages[idx].title) link.remove(); });
+      customPages.splice(idx, 1); localStorage.setItem('pages', JSON.stringify(customPages)); updatePageSelect();
+    }
+    let isAdmin = false; const ADMIN_PASSWORD = "mysupersecret";
+    function loginAdmin() {
+      const pw = document.getElementById('adminPassword').value;
+      if (pw === ADMIN_PASSWORD) { isAdmin = true; document.getElementById('loginBox').style.display = 'none'; document.getElementById('adminControls').style.display = 'block'; renderProducts(); }
+      else alert('Wrong password');
+    }
+    function logoutAdmin() { isAdmin = false; document.getElementById('loginBox').style.display = 'block'; document.getElementById('adminControls').style.display = 'none'; renderProducts(); }
+    function showPage(id) { document.querySelectorAll('main section').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); if (id === 'cart') renderCart(); }
+    renderProducts(); renderPages(); renderCart();
+  </script>
+</body>
+</html>
